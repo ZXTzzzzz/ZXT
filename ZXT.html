@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>💩巧克力大冒险</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+        body{background:#6a11cb;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:15px;color:#fff}
+        .container{width:100%;max-width:100%;display:flex;flex-direction:column;align-items:center;gap:15px}
+        header{text-align:center;margin-bottom:10px;width:100%}
+        h1{font-size:1.8rem;margin-bottom:5px;color:#fff}
+        .game-info{display:flex;justify-content:space-between;width:100%;background:rgba(0,0,0,0.2);border-radius:10px;padding:10px}
+        .player{text-align:center;flex:1;padding:10px;border-radius:8px;transition:all 0.3s}
+        .player.active{background:rgba(255,255,255,0.2);box-shadow:0 0 10px rgba(255,215,0,0.5)}
+        .player-name{font-size:1.2rem;font-weight:bold}
+        .player-status{font-size:0.8rem;opacity:0.9}
+        .chocolate-container{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:100%;margin:10px 0}
+        .chocolate{aspect-ratio:1;background:#8B4513;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem;cursor:pointer;box-shadow:0 4px 8px rgba(0,0,0,0.3);transition:all 0.3s}
+        .chocolate.eaten{opacity:0.3;transform:scale(0.9);cursor:default}
+        .chocolate.true-shit{background:#556b2f;animation:pulse 2s infinite}
+        @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+        .message-box{width:100%;background:rgba(255,255,255,0.1);border-radius:10px;padding:15px;text-align:center;font-size:1.1rem;min-height:80px;display:flex;align-items:center;justify-content:center;margin:10px 0}
+        .controls{display:flex;gap:10px;width:100%}
+        button{flex:1;padding:12px;border:none;border-radius:50px;font-size:1rem;font-weight:bold;cursor:pointer;background:#ff5e62;color:#fff;box-shadow:0 4px 8px rgba(0,0,0,0.2)}
+        .result-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;padding:20px;display:none}
+        .result-content{background:#6a11cb;border-radius:15px;padding:20px;text-align:center}
+        .result-title{font-size:1.8rem;margin-bottom:15px;color:#ffcc00}
+        .result-message{font-size:1.2rem;margin-bottom:20px}
+        .selection-info{font-size:1rem;margin:10px 0}
+        .highlight{color:#ffcc00;font-weight:bold}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💩巧克力大冒险</h1>
+            <p>避开真💩，让对方吃到它！</p >
+        </header>
+        
+        <div class="game-info">
+            <div class="player player1 active" id="player1">
+                <div class="player-name">玩家1</div>
+                <div class="player-status">当前回合</div>
+            </div>
+            <div class="player player2" id="player2">
+                <div class="player-name">玩家2</div>
+                <div class="player-status">等待中</div>
+            </div>
+        </div>
+        
+        <div class="chocolate-container" id="chocolateContainer"></div>
+        
+        <div class="message-box" id="messageBox">
+            玩家1：请选择你认为的真💩
+        </div>
+        
+        <div class="controls">
+            <button id="resetBtn">重置游戏</button>
+            <button id="restartBtn">重新开始</button>
+        </div>
+    </div>
+    
+    <div class="result-screen" id="resultScreen">
+        <div class="result-content">
+            <div class="result-title">游戏结束！</div>
+            <div class="result-message" id="resultMessage"></div>
+            <div class="selection-info">
+                真💩：<span class="highlight" id="trueShitDisplay">#0</span>
+            </div>
+            <div class="selection-info">
+                玩家1的选择：<span class="highlight" id="player1ChoiceDisplay">#0</span>
+            </div>
+            <div class="selection-info">
+                玩家2的选择：<span class="highlight" id="player2ChoiceDisplay">#0</span>
+            </div>
+            <button id="playAgainBtn">再玩一次</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var gameState = {
+                totalChocolates: 20,
+                trueShitIndex: -1,
+                player1Choice: -1,
+                player2Choice: -1,
+                currentPlayer: 1,
+                gamePhase: 'selection',
+                eatenChocolates: 0
+            };
+            
+            var chocolateContainer = document.getElementById('chocolateContainer');
+            var messageBox = document.getElementById('messageBox');
+            var player1Element = document.getElementById('player1');
+            var player2Element = document.getElementById('player2');
+            var resetBtn = document.getElementById('resetBtn');
+            var restartBtn = document.getElementById('restartBtn');
+            var resultScreen = document.getElementById('resultScreen');
+            var resultMessage = document.getElementById('resultMessage');
+            var trueShitDisplay = document.getElementById('trueShitDisplay');
+            var player1ChoiceDisplay = document.getElementById('player1ChoiceDisplay');
+            var player2ChoiceDisplay = document.getElementById('player2ChoiceDisplay');
+            var playAgainBtn = document.getElementById('playAgainBtn');
+            
+            function initGame() {
+                gameState.trueShitIndex = Math.floor(Math.random() * gameState.totalChocolates);
+                gameState.player1Choice = -1;
+                gameState.player2Choice = -1;
+                gameState.currentPlayer = 1;
+                gameState.gamePhase = 'selection';
+                gameState.eatenChocolates = 0;
+                
+                chocolateContainer.innerHTML = '';
+                player1Element.classList.add('active');
+                player2Element.classList.remove('active');
+                resultScreen.style.display = 'none';
+                
+                for (var i = 0; i < gameState.totalChocolates; i++) {
+                    var chocolate = document.createElement('div');
+                    chocolate.className = 'chocolate';
+                    chocolate.innerHTML = '💩';
+                    chocolate.dataset.index = i;
+                    
+                    chocolate.addEventListener('click', handleChocolateClick);
+                    chocolateContainer.appendChild(chocolate);
+                }
+                
+                updateMessage('玩家1：请选择你认为的真💩');
+            }
+            
+            function handleChocolateClick(e) {
+                var chocolate = e.currentTarget;
+                var index = parseInt(chocolate.dataset.index);
+                
+                if (chocolate.classList.contains('eaten')) return;
+                
+                if (gameState.gamePhase === 'selection') {
+                    if (gameState.currentPlayer === 1 && gameState.player1Choice === -1) {
+                        gameState.player1Choice = index;
+                        chocolate.style.background = '#1e90ff';
+                        updateMessage('玩家2：请选择你认为的真💩');
+                        gameState.currentPlayer = 2;
+                        player1Element.classList.remove('active');
+                        player2Element.classList.add('active');
+                    } else if (gameState.currentPlayer === 2 && gameState.player2Choice === -1) {
+                        gameState.player2Choice = index;
+                        chocolate.style.background = '#32cd32';
+                        updateMessage('游戏开始！玩家1请吃巧克力');
+                        gameState.gamePhase = 'game';
+                        gameState.currentPlayer = 1;
+                        player1Element.classList.add('active');
+                        player2Element.classList.remove('active');
+                    }
+                } else if (gameState.gamePhase === 'game') {
+                    chocolate.classList.add('eaten');
+                    gameState.eatenChocolates++;
+                    
+                    if (index === gameState.trueShitIndex) {
+                        endGame(gameState.currentPlayer);
+                        chocolate.classList.add('true-shit');
+                    } else {
+                        gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+                        updateMessage('玩家' + gameState.currentPlayer + '请吃巧克力');
+                        player1Element.classList.toggle('active');
+                        player2Element.classList.toggle('active');
+                    }
+                }
+            }
+            
+            function updateMessage(message) {
+                messageBox.textContent = message;
+            }
+            
+            function endGame(losingPlayer) {
+                gameState.gamePhase = 'ended';
+                var winner = losingPlayer === 1 ? 2 : 1;
+                resultMessage.innerHTML = '玩家' + losingPlayer + '吃到了真💩！<br><span class="highlight">玩家' + winner + '获胜！</span>';
+                
+                trueShitDisplay.textContent = '#' + (gameState.trueShitIndex + 1);
+                player1ChoiceDisplay.textContent = '#' + (gameState.player1Choice + 1);
+                player2ChoiceDisplay.textContent = '#' + (gameState.player2Choice + 1);
+                
+                resultScreen.style.display = 'flex';
+            }
+            
+            resetBtn.addEventListener('click', initGame);
+            restartBtn.addEventListener('click', initGame);
+            playAgainBtn.addEventListener('click', initGame);
+            
+            initGame();
+        });
+    </script>
+</body>
+</html>
